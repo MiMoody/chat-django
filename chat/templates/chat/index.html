@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Channels</title>
+    <script
+            src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous">
+    </script>
+</head>
+<body>
+
+   <h1>Hello, its a chat!</h1>
+   <textarea style = "height:100px" readonly=true id="chat"></textarea>
+   <br>
+   <input id="inputMessage"/>
+   <br>
+   <br>
+   <button id="send">Send</button>
+
+   <script>
+    let chat = document.querySelector("#chat")
+    let inputMessage = document.querySelector("#inputMessage")
+    let sendBtn = document.querySelector("#send")
+    sendBtn.onclick = (e) => {
+        sendMessage(inputMessage.value)
+        inputMessage.value = ""
+    }
+
+    const ws = new WebSocket(`ws://${window.location.host}/ws/messanger/`)
+
+    ws.onopen = () => {
+        ws.send(
+            JSON.stringify({
+                action: "retrieve",
+                pk:1,
+                request_id: new Date().getTime(),
+            })
+        );
+    }
+
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data)
+        console.log(data)
+        recieveMessage(data["text"])
+    }
+
+    function sendMessage(message){
+        ws.send(
+            JSON.stringify({
+                "action":"create_message",
+                "message":message,
+                "room_id":1,
+                "request_id":new Date().getTime()
+        }))
+    }
+
+    function recieveMessage(message){
+        chat.textContent+="\n"+message
+    }
+
+    
+   </script>
+</body>
+</html>
