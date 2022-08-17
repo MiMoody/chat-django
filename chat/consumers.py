@@ -8,6 +8,7 @@ from djangochannelsrestframework.observer import model_observer
 from .models import Room, Message
 from django.contrib.auth.models import User
 from .serializers import MessageSerializer, RoomSerializer, UserSerializer
+from chat import serializers
 
 
 class MyConsumer(ObserverModelInstanceMixin, GenericAsyncAPIConsumer):
@@ -19,16 +20,12 @@ class MyConsumer(ObserverModelInstanceMixin, GenericAsyncAPIConsumer):
         await self.accept()
         await self.message_activity.subscribe()
         self.__user = self.scope["user"]
-        await self.send(text_data=json.dumps(
-            {
-                "type":"connection_established",
-                "text":"hello in ws live!",
-            }))
     
     @model_observer(Message)
-    async def message_activity(self, message:dict, **kwargs):
+    async def message_activity(self, message:dict, action =None, **kwargs):
         try:
             users_in_room:list = message["room"]["current_users"]
+            message["action"] = action
             if self.__user.id in users_in_room:
                 await self.send_json(message)
         except Exception as e:
@@ -51,7 +48,23 @@ class MyConsumer(ObserverModelInstanceMixin, GenericAsyncAPIConsumer):
             )
         except Exception as e:
             print(e)
-
+    
+    @action()
+    async def load_rooms(self, action=None, **kwargs):
+        rooms = await self.get_all_rooms()
+        data ={
+            "action":action,
+            "rooms":rooms
+        }
+        return await self.send_json(data)
+     
+    @database_sync_to_async   
+    def get_all_rooms(self):
+        rooms = Room.objects.filter(current_users__id__in = [self.__user.id])
+        serializer = RoomSerializer(rooms, many=True, 
+                                    remove_fields=["messages", "current_users"])
+        return serializer.data
+    
     @database_sync_to_async
     def check_user_in_room(self, room:Room):
         if not room:

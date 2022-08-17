@@ -11,7 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password"]
+        fields = ["id", "username", "email", "password", ]
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -41,11 +41,19 @@ class RoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     messages = MessageSerializer(many=True, read_only=True)
 
+    def __init__(self, *args, **kwargs):
+        remove_fields = kwargs.pop('remove_fields', None)
+        super(RoomSerializer, self).__init__(*args, **kwargs)
+        if remove_fields:
+            # for multiple fields in a list
+            for field_name in remove_fields:
+                self.fields.pop(field_name)
+
     class Meta:
         model = Room
-        fields = ["id", "name", "messages", "current_users", "last_message"]
+        fields = ["id", "name", "description", "messages", "current_users", "last_message"]
         depth = 1
-        read_only_fields = ["messages", "last_message"]
+        # read_only_fields = ["messages", "last_message"]
 
     def get_last_message(self, obj: Room):
         return MessageSerializer(obj.messages.order_by('created_at').last()).data
